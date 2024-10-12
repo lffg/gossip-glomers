@@ -1,5 +1,5 @@
 [workspace]
-members = ["echo"]
+members = ["echo", "proto"]
 resolver = "2"
 
 [workspace.package]
@@ -7,5 +7,7 @@ edition = "2021"
 version = "0.0.1"
 
 [workspace.dependencies]
+proto.path = "./proto"
+
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"

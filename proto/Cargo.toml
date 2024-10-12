@@ -1,7 +1,8 @@
 [package]
-name = "echo"
+name = "proto"
 edition.workspace = true
 version.workspace = true
 
 [dependencies]
-proto.workspace = true
+serde.workspace = true
+serde_json.workspace = true

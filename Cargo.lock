@@ -6,8 +6,7 @@ version = 3
 name = "echo"
 version = "0.0.1"
 dependencies = [
- "serde",
- "serde_json",
+ "proto",
 ]
 
 [[package]]
@@ -29,6 +28,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3e4daa0dcf6feba26f985457cdf104d4b4256fc5a09547140f3631bb076b19a"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "proto"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
