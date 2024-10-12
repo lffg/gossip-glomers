@@ -1,4 +1,4 @@
-use proto::{handle_s, Context, Msg};
+use proto::{handle, Context, Msg};
 
 fn unique_ids(msg: Msg, ctx: &Context, counter: &mut u64) -> Msg {
     let Msg::Generate { msg_id } = msg else {
@@ -17,5 +17,5 @@ fn unique_ids(msg: Msg, ctx: &Context, counter: &mut u64) -> Msg {
 
 fn main() {
     let mut counter = 0;
-    handle_s(&mut counter, unique_ids);
+    handle(|msg, context| unique_ids(msg, context, &mut counter));
 }
