@@ -1,6 +1,14 @@
-use proto::{handle, Ctx, Msg};
+use proto::{handle, Ctx};
+use serde::{Deserialize, Serialize};
 
-fn echo(msg: Msg, ctx: &mut Ctx) {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Msg {
+    Echo { echo: String },
+    EchoOk { echo: String },
+}
+
+fn echo(msg: Msg, ctx: &mut Ctx<Msg>) {
     let Msg::Echo { echo } = msg else {
         panic!("unexpected {msg:?}");
     };

@@ -5,3 +5,4 @@ version.workspace = true
 
 [dependencies]
 proto.workspace = true
+serde.workspace = true

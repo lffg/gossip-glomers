@@ -1,8 +1,34 @@
 //! This works both as a single-node and multi-node broadcast!
 
-use proto::{handle, Ctx, Msg};
+use std::collections::HashMap;
 
-fn broadcast(msg: Msg, ctx: &mut Ctx, store: &mut Vec<i32>) {
+use proto::{handle, Ctx};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Msg {
+    Broadcast {
+        message: i32,
+    },
+    BroadcastOk,
+    /// Our own
+    Gossip {
+        message: i32,
+    },
+    /// Our own
+    GossipOk,
+    Read,
+    ReadOk {
+        messages: Vec<i32>,
+    },
+    Topology {
+        topology: HashMap<String, Vec<String>>,
+    },
+    TopologyOk,
+}
+
+fn broadcast(msg: Msg, ctx: &mut Ctx<Msg>, store: &mut Vec<i32>) {
     match msg {
         Msg::Broadcast { message } => {
             for node in ctx.nodes_ids {

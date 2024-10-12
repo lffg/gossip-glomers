@@ -1,6 +1,14 @@
-use proto::{handle, Ctx, Msg};
+use proto::{handle, Ctx};
+use serde::{Deserialize, Serialize};
 
-fn unique_ids(msg: Msg, ctx: &mut Ctx, counter: &mut u64) {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Msg {
+    Generate,
+    GenerateOk { id: String },
+}
+
+fn unique_ids(msg: Msg, ctx: &mut Ctx<Msg>, counter: &mut u64) {
     let Msg::Generate = msg else {
         panic!("unexpected {msg:?}");
     };
