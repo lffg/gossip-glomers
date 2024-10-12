@@ -1,0 +1,7 @@
+[package]
+name = "broadcast"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+proto.workspace = true

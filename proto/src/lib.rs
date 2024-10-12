@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    collections::HashMap,
     io::{self, BufWriter, Write},
 };
 
@@ -44,6 +45,24 @@ pub enum Msg {
     GenerateOk {
         id: String,
     },
+    Broadcast {
+        message: i32,
+    },
+    BroadcastOk,
+    /// Our own
+    Gossip {
+        message: i32,
+    },
+    /// Our own
+    GossipOk,
+    Read,
+    ReadOk {
+        messages: Vec<i32>,
+    },
+    Topology {
+        topology: HashMap<String, Vec<String>>,
+    },
+    TopologyOk,
 }
 
 pub struct Ctx<'init> {
