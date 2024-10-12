@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 maelstrom test -w broadcast \
     --bin "$GG_PROG" \

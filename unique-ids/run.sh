@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 maelstrom test -w unique-ids \
     --bin "$GG_PROG" \
