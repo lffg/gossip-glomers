@@ -1,31 +1,27 @@
 use std::{
+    borrow::Cow,
     io::{self, BufWriter, Write},
-    mem,
 };
 
 use serde::{Deserialize, Serialize};
 
 /// A full message
 #[derive(Serialize, Deserialize)]
-pub struct FullMsg {
-    pub src: String,
+pub struct FullMsg<'a> {
+    pub src: Cow<'a, str>,
     #[serde(rename = "dest")]
-    pub dst: String,
-    pub body: Msg,
+    pub dst: Cow<'a, str>,
+    pub body: Body,
 }
 
-impl FullMsg {
-    pub fn reply(self, body: Msg) -> FullMsg {
-        FullMsg {
-            src: self.dst,
-            dst: self.src,
-            body,
-        }
-    }
-
-    fn take(&mut self) -> Msg {
-        mem::take(&mut self.body)
-    }
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Body {
+    #[serde(rename = "msg_id")]
+    pub id: Option<u32>,
+    #[serde(rename = "in_reply_to")]
+    pub reply_to: Option<u32>,
+    #[serde(flatten)]
+    pub msg: Msg,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -34,44 +30,93 @@ pub enum Msg {
     #[default]
     Unknown,
     Init {
-        msg_id: u32,
         node_id: String,
         node_ids: Vec<String>,
     },
-    InitOk {
-        in_reply_to: u32,
-    },
+    InitOk,
     Echo {
-        msg_id: u32,
         echo: String,
     },
     EchoOk {
-        msg_id: u32,
-        in_reply_to: u32,
         echo: String,
     },
-    Generate {
-        msg_id: u32,
-    },
+    Generate,
     GenerateOk {
-        msg_id: u32,
-        in_reply_to: u32,
         id: String,
     },
 }
 
-pub struct Context {
+pub struct Ctx<'init> {
     /// The ID of the current node.
-    pub node_id: String,
-    pub nodes_ids: Vec<String>,
+    pub node_id: &'init str,
+    pub nodes_ids: &'init [String],
+
+    /// The source of the message that is currently being handled.
+    src: String,
+    /// The message ID (if any) of the message that is currently being handled.
+    in_reply_to: Option<u32>,
+
+    writer: BufWriter<io::Stdout>,
+    /// Counter of sent messages.
+    count: u32,
+}
+
+impl<'init> Ctx<'init> {
+    fn update<'new_curr>(self, in_reply_to: Option<u32>, src: String) -> Ctx<'init> {
+        Ctx {
+            node_id: self.node_id,
+            nodes_ids: self.nodes_ids,
+            src,
+            in_reply_to,
+            writer: self.writer,
+            count: self.count,
+        }
+    }
+
+    pub fn reply(&mut self, msg: Msg) {
+        let body = Body {
+            id: Some(self.count()),
+            reply_to: self.in_reply_to,
+            msg,
+        };
+        write(
+            &mut self.writer,
+            FullMsg {
+                src: Cow::Borrowed(&self.node_id),
+                dst: Cow::Borrowed(&self.src),
+                body,
+            },
+        );
+    }
+
+    pub fn send(&mut self, dst: &str, msg: Msg) {
+        let body = Body {
+            id: Some(self.count()),
+            reply_to: None,
+            msg,
+        };
+        write(
+            &mut self.writer,
+            FullMsg {
+                src: Cow::Borrowed(&self.node_id),
+                dst: Cow::Borrowed(dst),
+                body,
+            },
+        );
+    }
+
+    fn count(&mut self) -> u32 {
+        self.count += 1;
+        self.count
+    }
 }
 
 /// Handles a message.
 pub fn handle<F>(mut f: F)
 where
-    F: for<'a> FnMut(Msg, &'a Context) -> Msg,
+    F: for<'a> FnMut(Msg, &'a mut Ctx),
 {
-    let mut stdout = BufWriter::new(io::stdout());
+    let stdout = BufWriter::new(io::stdout());
     let stdin = io::stdin();
 
     let mut lines = stdin.lines();
@@ -80,46 +125,42 @@ where
     let init = lines
         .next()
         .expect("should receive `Init` message")
-        .expect("failed to read message");
-    let mut init = decode(&init);
+        .expect("should to read message");
+    let init = decode(&init);
 
-    let init_msg = init.take();
-    let (init_reply, context) = handle_init(init_msg);
-    let init_reply = init.reply(init_reply);
-    write(&mut stdout, init_reply);
+    let mut ctx = init_ctx(stdout, &init);
+    ctx.reply(Msg::InitOk);
 
     for line in lines {
-        let mut msg = decode(&line.expect("failed to read message"));
-        let body = msg.take();
-        let reply = f(body, &context);
-        let reply = msg.reply(reply);
-        write(&mut stdout, reply);
+        let msg = line.expect("should read message");
+        let msg = decode(&msg);
+        let Cow::Owned(src) = msg.src else {
+            unreachable!()
+        };
+        ctx = ctx.update(msg.body.id, src);
+        f(msg.body.msg, &mut ctx);
     }
 }
 
-fn handle_init(msg: Msg) -> (Msg, Context) {
-    let Msg::Init {
-        msg_id,
-        node_id,
-        node_ids,
-    } = msg
-    else {
-        panic!("unexpected {msg:?}");
+fn init_ctx<'init>(w: BufWriter<io::Stdout>, msg: &'init FullMsg) -> Ctx<'init> {
+    let Msg::Init { node_id, node_ids } = &msg.body.msg else {
+        panic!("expected `Init` msg, got {:?}", msg.body.msg);
     };
-    let reply = Msg::InitOk {
-        in_reply_to: msg_id,
-    };
-    let context = Context {
-        node_id,
-        nodes_ids: node_ids,
-    };
-    (reply, context)
+    Ctx {
+        node_id: &node_id,
+        nodes_ids: &node_ids,
+        src: msg.src.to_string(), // Here we clone (just once)
+        in_reply_to: msg.body.id,
+        writer: w,
+        count: 0,
+    }
 }
 
 fn decode(raw: &str) -> FullMsg {
     serde_json::from_str(raw).expect("should deserialize `FullMsg`")
 }
 
+#[inline]
 fn write<W>(w: &mut BufWriter<W>, msg: FullMsg)
 where
     W: Write,

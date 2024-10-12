@@ -1,14 +1,11 @@
-use proto::{handle, Context, Msg};
+use proto::{handle, Ctx, Msg};
 
-fn echo(msg: Msg, _: &Context) -> Msg {
-    let Msg::Echo { msg_id, echo } = msg else {
+fn echo(msg: Msg, ctx: &mut Ctx) {
+    let Msg::Echo { echo } = msg else {
         panic!("unexpected {msg:?}");
     };
-    Msg::EchoOk {
-        msg_id,
-        in_reply_to: msg_id,
-        echo,
-    }
+
+    ctx.reply(Msg::EchoOk { echo });
 }
 
 fn main() {

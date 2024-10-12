@@ -1,18 +1,14 @@
-use proto::{handle, Context, Msg};
+use proto::{handle, Ctx, Msg};
 
-fn unique_ids(msg: Msg, ctx: &Context, counter: &mut u64) -> Msg {
-    let Msg::Generate { msg_id } = msg else {
+fn unique_ids(msg: Msg, ctx: &mut Ctx, counter: &mut u64) {
+    let Msg::Generate = msg else {
         panic!("unexpected {msg:?}");
     };
 
     let id = format!("{}:{}", &ctx.node_id, *counter);
     *counter += 1;
 
-    Msg::GenerateOk {
-        msg_id,
-        in_reply_to: msg_id,
-        id,
-    }
+    ctx.reply(Msg::GenerateOk { id });
 }
 
 fn main() {
