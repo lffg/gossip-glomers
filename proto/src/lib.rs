@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     io::{self, BufWriter, Write},
-    marker::PhantomData,
 };
 
 use serde::{Deserialize, Serialize};
@@ -25,10 +24,10 @@ pub struct Body<M> {
     pub msg: M,
 }
 
-pub struct Ctx<'init, M> {
+pub struct Ctx<'init> {
     /// The ID of the current node.
     pub node_id: &'init str,
-    pub nodes_ids: &'init [String],
+    pub node_ids: &'init [String],
 
     /// The source of the message that is currently being handled.
     src: String,
@@ -38,49 +37,23 @@ pub struct Ctx<'init, M> {
     writer: BufWriter<io::Stdout>,
     /// Counter of sent messages.
     count: u32,
-
-    _m: PhantomData<M>,
 }
 
-impl<'init, M> Ctx<'init, M>
-where
-    M: Serialize,
-{
-    fn update<'new_curr>(self, in_reply_to: Option<u32>, src: String) -> Ctx<'init, M> {
+impl<'init> Ctx<'init> {
+    fn update(self, in_reply_to: Option<u32>, src: String) -> Ctx<'init> {
         Ctx {
             node_id: self.node_id,
-            nodes_ids: self.nodes_ids,
+            node_ids: self.node_ids,
             src,
             in_reply_to,
             writer: self.writer,
             count: self.count,
-            _m: PhantomData,
         }
     }
 
-    pub fn reply(&mut self, msg: M) {
-        self.reply_any(msg);
-    }
-
-    pub fn send(&mut self, dst: &str, msg: M) {
-        let body = Body {
-            id: Some(self.count()),
-            reply_to: None,
-            msg,
-        };
-        write(
-            &mut self.writer,
-            Msg {
-                src: Cow::Borrowed(&self.node_id),
-                dst: Cow::Borrowed(dst),
-                body,
-            },
-        );
-    }
-
-    fn reply_any<N>(&mut self, msg: N)
+    pub fn reply<M>(&mut self, msg: M)
     where
-        N: Serialize,
+        M: Serialize,
     {
         let body = Body {
             id: Some(self.count()),
@@ -90,8 +63,27 @@ where
         write(
             &mut self.writer,
             Msg {
-                src: Cow::Borrowed(&self.node_id),
+                src: Cow::Borrowed(self.node_id),
                 dst: Cow::Borrowed(&self.src),
+                body,
+            },
+        );
+    }
+
+    pub fn send<M>(&mut self, dst: &str, msg: M)
+    where
+        M: Serialize,
+    {
+        let body = Body {
+            id: Some(self.count()),
+            reply_to: None,
+            msg,
+        };
+        write(
+            &mut self.writer,
+            Msg {
+                src: Cow::Borrowed(self.node_id),
+                dst: Cow::Borrowed(dst),
                 body,
             },
         );
@@ -106,7 +98,7 @@ where
 /// Handles a message.
 pub fn handle<F, M>(mut f: F)
 where
-    F: for<'a> FnMut(M, &'a mut Ctx<M>),
+    F: for<'a> FnMut(M, &'a mut Ctx),
     M: Serialize + for<'de> Deserialize<'de>,
 {
     let stdout = BufWriter::new(io::stdout());
@@ -122,7 +114,7 @@ where
     let init = decode(&init);
 
     let mut ctx = init_ctx(stdout, &init);
-    ctx.reply_any(Init::InitOk);
+    ctx.reply(Init::InitOk);
 
     for line in lines {
         let msg = line.expect("should read message");
@@ -145,18 +137,17 @@ pub enum Init {
     InitOk,
 }
 
-fn init_ctx<'init, M>(w: BufWriter<io::Stdout>, msg: &'init Msg<Init>) -> Ctx<'init, M> {
+fn init_ctx<'init>(w: BufWriter<io::Stdout>, msg: &'init Msg<Init>) -> Ctx<'init> {
     let Init::Init { node_id, node_ids } = &msg.body.msg else {
         panic!("expected `Init` msg, got {:?}", msg.body.msg);
     };
     Ctx {
-        node_id: &node_id,
-        nodes_ids: &node_ids,
+        node_id,
+        node_ids,
         src: msg.src.to_string(), // Here we clone (just once)
         in_reply_to: msg.body.id,
         writer: w,
         count: 0,
-        _m: PhantomData,
     }
 }
 

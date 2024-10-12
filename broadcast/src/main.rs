@@ -28,10 +28,10 @@ pub enum Msg {
     TopologyOk,
 }
 
-fn broadcast(msg: Msg, ctx: &mut Ctx<Msg>, store: &mut Vec<i32>) {
+fn broadcast(msg: Msg, ctx: &mut Ctx, store: &mut Vec<i32>) {
     match msg {
         Msg::Broadcast { message } => {
-            for node in ctx.nodes_ids {
+            for node in ctx.node_ids {
                 ctx.send(node, Msg::Gossip { message });
             }
             ctx.reply(Msg::BroadcastOk);

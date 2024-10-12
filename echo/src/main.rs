@@ -8,7 +8,7 @@ pub enum Msg {
     EchoOk { echo: String },
 }
 
-fn echo(msg: Msg, ctx: &mut Ctx<Msg>) {
+fn echo(msg: Msg, ctx: &mut Ctx) {
     let Msg::Echo { echo } = msg else {
         panic!("unexpected {msg:?}");
     };

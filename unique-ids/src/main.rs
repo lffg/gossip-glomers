@@ -8,7 +8,7 @@ pub enum Msg {
     GenerateOk { id: String },
 }
 
-fn unique_ids(msg: Msg, ctx: &mut Ctx<Msg>, counter: &mut u64) {
+fn unique_ids(msg: Msg, ctx: &mut Ctx, counter: &mut u64) {
     let Msg::Generate = msg else {
         panic!("unexpected {msg:?}");
     };
