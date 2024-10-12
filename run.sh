@@ -3,10 +3,8 @@
 prog=$1
 
 cargo build -p "$prog" --release
+
 echo "running '$prog'"
 
-maelstrom test \
-    -w "$prog" \
-    --bin "./target/release/$prog" \
-    --node-count 1 \
-    --time-limit 10
+export GG_PROG="./target/release/$prog"
+./"$prog/run.sh"
