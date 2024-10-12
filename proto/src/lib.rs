@@ -50,6 +50,14 @@ pub enum Msg {
         in_reply_to: u32,
         echo: String,
     },
+    Generate {
+        msg_id: u32,
+    },
+    GenerateOk {
+        msg_id: u32,
+        in_reply_to: u32,
+        id: String,
+    },
 }
 
 pub struct Context {
@@ -58,9 +66,19 @@ pub struct Context {
     pub nodes_ids: Vec<String>,
 }
 
+/// Handles a message.
 pub fn handle<F>(mut f: F)
 where
     F: for<'a> FnMut(Msg, &'a Context) -> Msg,
+{
+    let mut s = ();
+    handle_s(&mut s, |m, c, _| f(m, c));
+}
+
+/// Handles a message with a custom state.
+pub fn handle_s<S, F>(state: &mut S, mut f: F)
+where
+    F: for<'a> FnMut(Msg, &'a Context, &mut S) -> Msg,
 {
     let mut stdout = BufWriter::new(io::stdout());
     let stdin = io::stdin();
@@ -82,7 +100,7 @@ where
     for line in lines {
         let mut msg = decode(&line.expect("failed to read message"));
         let body = msg.take();
-        let reply = f(body, &context);
+        let reply = f(body, &context, state);
         let reply = msg.reply(reply);
         write(&mut stdout, reply);
     }

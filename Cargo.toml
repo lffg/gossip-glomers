@@ -1,5 +1,5 @@
 [workspace]
-members = ["echo", "proto"]
+members = ["echo", "proto", "unique-ids"]
 resolver = "2"
 
 [workspace.package]
